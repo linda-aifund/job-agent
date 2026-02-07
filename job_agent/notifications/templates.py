@@ -1,6 +1,8 @@
 """HTML email templates for job notifications."""
 
 from datetime import datetime
+from html import escape
+from urllib.parse import quote_plus, urlsplit, urlunsplit
 
 from job_agent.jobs.models import JobListing
 
@@ -194,16 +196,25 @@ def _render_job_row(job: JobListing, rank: int) -> str:
     if desc:
         desc_html = f'<div style="font-size:13px;color:#555;margin-top:8px;">{desc}</div>'
 
+    # LinkedIn blocks direct links from email clients, so use a Google
+    # search that finds the same listing reliably
+    if job.url and "linkedin.com" in job.url:
+        query = f'"{job.title}" "{job.company}" job -site:linkedin.com'
+        clean_url = f"https://www.google.com/search?q={quote_plus(query)}"
+    else:
+        clean_url = job.url or ""
+    clean_url = escape(clean_url, quote=True)
+
     return f"""
         <div class="job-card">
             <div class="job-header">
                 <div class="job-title">
                     <span class="rank">#{rank}</span>
-                    <a href="{job.url}">{job.title}</a>
+                    <a href="{clean_url}">{escape(job.title)}</a>
                 </div>
                 <span class="score-badge {score_class}">{score_pct}% match</span>
             </div>
-            <div class="job-company">{job.company}</div>
+            <div class="job-company">{escape(job.company)}</div>
             <div class="job-meta">{meta_line}</div>
             {desc_html}
             {reason_html}

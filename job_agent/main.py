@@ -189,6 +189,22 @@ def run_pipeline(config: AppConfig, dry_run: bool = False):
             for job in new_jobs:
                 db.add_job(job)
 
+            # Deduplicate by (title, company) — same listing may appear
+            # with different URLs from pagination or tracking params
+            seen_pairs = set()
+            unique_matched = []
+            for job in matched_jobs:
+                key = (job.title.strip().lower(), job.company.strip().lower())
+                if key not in seen_pairs:
+                    seen_pairs.add(key)
+                    unique_matched.append(job)
+            if len(unique_matched) < len(matched_jobs):
+                logger.info(
+                    "Removed %d duplicate listings, %d unique jobs",
+                    len(matched_jobs) - len(unique_matched), len(unique_matched),
+                )
+            matched_jobs = unique_matched
+
             if not matched_jobs:
                 logger.info("No jobs above match threshold")
                 db.record_run(
