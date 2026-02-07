@@ -72,12 +72,26 @@ Run `setup_task.bat` as Administrator to create a Windows Scheduled Task that ru
 
 | Component | Weight | Method |
 |-----------|--------|--------|
-| Skills overlap | 40% | Recognized tech skills in common |
+| Skills overlap | 40% | Recognized skills in common (tech + HR/people ops) |
 | Title similarity | 30% | Normalized job title word overlap |
 | Keyword overlap | 20% | Frequency-based keyword matching |
 | Experience alignment | 10% | Years of experience comparison |
 
 **AI matcher** (optional, requires OpenAI API key): Sends profile + job description to `gpt-4o-mini` for semantic scoring. Only scores jobs that pass a keyword pre-filter (default >0.2) to limit API costs.
+
+The skill set covers both technical roles (Python, AWS, Kubernetes, etc.) and people/HR roles (talent acquisition, people operations, DEI, compensation, HRIS, etc.).
+
+Search titles from your config are automatically added to the profile for title matching, so you don't need exact title matches in your resume.
+
+## Deduplication
+
+Jobs are deduplicated at two levels:
+- **Database-level**: SHA-256 hash of (title, company, URL) prevents re-sending jobs across runs
+- **Email-level**: Same (title, company) pairs are collapsed so you don't see the same listing with different tracking URLs
+
+## Email Links
+
+Job links in the email open a Google search for the job title and company, excluding LinkedIn results (which don't work reliably on mobile). This surfaces the listing on other job boards (ZipRecruiter, Glassdoor, company career pages, etc.).
 
 ## Project Structure
 
@@ -113,6 +127,6 @@ pytest tests/ -v
 ## Requirements
 
 - Python 3.10+
-- A [SerpAPI](https://serpapi.com/) key for Google Jobs search
-- A Gmail account with an [App Password](https://support.google.com/accounts/answer/185833) for sending notifications
+- A Gmail or Google Workspace account with an [App Password](https://support.google.com/accounts/answer/185833) for sending notifications
+- (Optional) A [SerpAPI](https://serpapi.com/) key for Google Jobs search — without it, LinkedIn public search is used
 - (Optional) An [OpenAI API](https://platform.openai.com/) key for AI-powered matching
