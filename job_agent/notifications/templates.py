@@ -172,6 +172,8 @@ def _render_job_row(job: JobListing, rank: int) -> str:
     score_pct = int(job.match_score * 100)
 
     meta_parts = []
+    if job.posted_date:
+        meta_parts.append(f"Posted {job.posted_date}")
     if job.location:
         meta_parts.append(job.location)
     if job.salary:
