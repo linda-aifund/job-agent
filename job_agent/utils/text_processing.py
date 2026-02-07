@@ -3,8 +3,8 @@
 import re
 from collections import Counter
 
-# Common tech skills for extraction
-TECH_SKILLS = {
+# Recognized skills for extraction
+SKILLS = {
     # Languages
     "python", "java", "javascript", "typescript", "c++", "c#", "go", "golang",
     "rust", "ruby", "php", "swift", "kotlin", "scala", "r", "matlab", "perl",
@@ -27,6 +27,22 @@ TECH_SKILLS = {
     # Tools & Practices
     "git", "agile", "scrum", "rest", "graphql", "grpc", "microservices",
     "api", "devops", "sre", "tdd", "unit testing",
+    # HR, People & Talent
+    "talent acquisition", "talent management", "people operations",
+    "people analytics", "workforce planning", "succession planning",
+    "organizational development", "organizational design",
+    "employee engagement", "employee relations", "employee experience",
+    "performance management", "change management", "executive coaching",
+    "leadership development", "learning and development",
+    "compensation", "total rewards", "benefits administration",
+    "diversity", "equity", "inclusion", "dei", "belonging",
+    "employer branding", "recruitment", "recruiting", "sourcing",
+    "onboarding", "offboarding", "retention",
+    "hris", "workday", "greenhouse", "lever", "bamboohr", "adp",
+    "culture", "coaching", "mentoring", "facilitation",
+    "labor relations", "compliance", "employment law",
+    "hr strategy", "people strategy", "talent strategy",
+    "executive search", "headcount planning",
 }
 
 # Common Silicon Valley location indicators
@@ -43,7 +59,7 @@ def extract_skills(text: str) -> set[str]:
     text_lower = text.lower()
     found = set()
 
-    for skill in TECH_SKILLS:
+    for skill in SKILLS:
         # Use word boundary matching for short skills to avoid false positives
         if len(skill) <= 2:
             if re.search(rf"\b{re.escape(skill)}\b", text_lower):

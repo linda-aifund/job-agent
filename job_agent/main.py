@@ -47,14 +47,21 @@ def load_profile(config: AppConfig) -> ProfileData:
     if config.profile.resume_path:
         from job_agent.profile.resume_parser import parse_resume
         logger.info("Parsing resume from: %s", config.profile.resume_path)
-        return parse_resume(config.profile.resume_path)
-
-    if config.profile.linkedin_url:
+        profile = parse_resume(config.profile.resume_path)
+    elif config.profile.linkedin_url:
         from job_agent.profile.linkedin_scraper import scrape_linkedin_profile
         logger.info("Scraping LinkedIn profile: %s", config.profile.linkedin_url)
-        return scrape_linkedin_profile(config.profile.linkedin_url)
+        profile = scrape_linkedin_profile(config.profile.linkedin_url)
+    else:
+        raise ValueError("No profile source configured. Set resume_path or linkedin_url in config.yaml")
 
-    raise ValueError("No profile source configured. Set resume_path or linkedin_url in config.yaml")
+    # Augment profile with search titles so matching works even when
+    # the resume titles don't exactly match the configured search terms
+    for title in config.search.job_titles:
+        if title not in profile.job_titles:
+            profile.job_titles.append(title)
+
+    return profile
 
 
 def fetch_all_jobs(config: AppConfig) -> list[JobListing]:

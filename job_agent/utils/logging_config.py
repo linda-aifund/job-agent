@@ -33,8 +33,9 @@ def setup_logging(log_dir: str = "logs", level: int = logging.INFO) -> logging.L
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
+    # Console handler (force UTF-8 to handle emoji in job titles)
+    console_stream = open(sys.stdout.fileno(), mode="w", encoding="utf-8", errors="replace", closefd=False)
+    console_handler = logging.StreamHandler(console_stream)
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
