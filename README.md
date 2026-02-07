@@ -1,5 +1,7 @@
 # Job Agent
 
+[![CI](https://github.com/linda-aifund/job-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/linda-aifund/job-agent/actions/workflows/ci.yml)
+
 A Python-based daily job agent that automatically finds, matches, and emails you relevant job listings every morning.
 
 ## How It Works
