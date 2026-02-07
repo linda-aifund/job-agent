@@ -51,8 +51,8 @@ def score_and_filter_jobs(
         if job.match_score >= threshold:
             matched.append(job)
 
-    # Sort by score descending
-    matched.sort(key=lambda j: j.match_score, reverse=True)
+    # Sort by posted date (most recent first), then by score as tiebreaker
+    matched.sort(key=lambda j: (j.posted_date or "", j.match_score), reverse=True)
 
     logger.info(
         "Matched %d/%d jobs above threshold %.2f",
