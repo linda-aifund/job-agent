@@ -1,0 +1,46 @@
+# Job Agent Configuration
+# Copy this file to config.yaml and fill in your settings.
+# Environment variables can override API keys:
+#   SERPAPI_KEY, OPENAI_API_KEY, JOB_AGENT_EMAIL_PASSWORD
+
+# --- Profile Source ---
+# Provide EITHER resume_path OR linkedin_url (resume preferred)
+profile:
+  resume_path: ""          # Path to your resume (PDF, TXT, or MD)
+  # linkedin_url: ""       # Public LinkedIn profile URL
+
+# --- Job Search Settings ---
+search:
+  job_titles:
+    - "Software Engineer"
+    # - "Backend Engineer"
+    # - "Full Stack Developer"
+  location: "Silicon Valley, CA"
+  remote_ok: true
+  experience_years: 0        # Your years of experience (used for matching)
+  max_results_per_source: 50
+
+# --- Matching Settings ---
+matching:
+  score_threshold: 0.3       # Minimum match score to include (0.0 - 1.0)
+  use_ai_matching: false     # Enable OpenAI semantic matching (requires API key)
+  ai_pre_filter_threshold: 0.2  # Keyword score needed before AI scoring
+
+# --- API Keys ---
+# Prefer environment variables for security
+api_keys:
+  serpapi_key: ""            # Get from https://serpapi.com/
+  openai_api_key: ""         # Optional, for AI matching
+
+# --- Email Notifications ---
+email:
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  sender_email: ""           # Your Gmail address
+  sender_password: ""        # Gmail App Password (NOT your regular password)
+                             # Generate at: https://myaccount.google.com/apppasswords
+  recipient_email: ""        # Where to send job matches
+
+# --- Storage ---
+data_dir: "data"
+log_dir: "logs"
