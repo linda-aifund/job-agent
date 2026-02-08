@@ -121,7 +121,30 @@ def run_now(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
 
     from job_agent.pipeline import run_pipeline_for_user
-    thread = threading.Thread(target=run_pipeline_for_user, args=(user.id,), daemon=True)
+
+    def _run_with_error_capture(uid):
+        import logging
+        import time
+        logger = logging.getLogger("job_agent.pipeline")
+        try:
+            run_pipeline_for_user(uid)
+        except Exception as e:
+            logger.error("[user:%d] Run Now thread crashed: %s", uid, e, exc_info=True)
+            # Record the crash in run history so user can see it
+            try:
+                from job_agent.models import SessionLocal, RunHistory
+                err_db = SessionLocal()
+                err_db.add(RunHistory(
+                    user_id=uid,
+                    error_message=f"Pipeline crashed: {e}",
+                    duration_seconds=0,
+                ))
+                err_db.commit()
+                err_db.close()
+            except Exception:
+                pass
+
+    thread = threading.Thread(target=_run_with_error_capture, args=(user.id,), daemon=True)
     thread.start()
 
     settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
