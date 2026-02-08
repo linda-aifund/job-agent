@@ -102,13 +102,25 @@ async def upload_resume(request: Request, file: UploadFile = File(...), db: Sess
     profile.keywords = parsed.keywords or profile.keywords or []
     profile.raw_text = parsed.raw_text or profile.raw_text
     profile.parsed_at = datetime.now(timezone.utc)
+
+    # Sync parsed data into search settings so pipeline uses the right titles/location
+    from job_agent.models import UserSettings
+    settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+    if settings:
+        if parsed.job_titles:
+            settings.job_titles = parsed.job_titles
+        if parsed.location:
+            settings.location = parsed.location
+        if parsed.experience_years:
+            settings.experience_years = parsed.experience_years
+
     db.commit()
 
     return request.app.state.templates.TemplateResponse("profile/index.html", {
         "request": request,
         "user": user,
         "profile": profile,
-        "flash_message": f"Resume '{file.filename}' uploaded and parsed successfully.",
+        "flash_message": f"Resume '{file.filename}' uploaded and parsed successfully. Search settings updated with your job titles.",
         "flash_type": "success",
     })
 
@@ -162,13 +174,25 @@ async def import_linkedin(request: Request, db: Session = Depends(get_db)):
     profile.keywords = parsed.keywords or profile.keywords or []
     profile.raw_text = parsed.raw_text or profile.raw_text
     profile.parsed_at = datetime.now(timezone.utc)
+
+    # Sync parsed data into search settings
+    from job_agent.models import UserSettings
+    settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+    if settings:
+        if parsed.job_titles:
+            settings.job_titles = parsed.job_titles
+        if parsed.location:
+            settings.location = parsed.location
+        if parsed.experience_years:
+            settings.experience_years = parsed.experience_years
+
     db.commit()
 
     return request.app.state.templates.TemplateResponse("profile/index.html", {
         "request": request,
         "user": user,
         "profile": profile,
-        "flash_message": "LinkedIn profile imported successfully.",
+        "flash_message": "LinkedIn profile imported successfully. Search settings updated with your job titles.",
         "flash_type": "success",
     })
 
