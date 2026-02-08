@@ -122,36 +122,20 @@ def run_now(request: Request, db: Session = Depends(get_db)):
 
     from job_agent.pipeline import run_pipeline_for_user
 
-    def _run_with_error_capture(uid):
-        import logging
-        import time
-        logger = logging.getLogger("job_agent.pipeline")
-        try:
-            run_pipeline_for_user(uid)
-        except Exception as e:
-            logger.error("[user:%d] Run Now thread crashed: %s", uid, e, exc_info=True)
-            # Record the crash in run history so user can see it
-            try:
-                from job_agent.models import SessionLocal, RunHistory
-                err_db = SessionLocal()
-                err_db.add(RunHistory(
-                    user_id=uid,
-                    error_message=f"Pipeline crashed: {e}",
-                    duration_seconds=0,
-                ))
-                err_db.commit()
-                err_db.close()
-            except Exception:
-                pass
-
-    thread = threading.Thread(target=_run_with_error_capture, args=(user.id,), daemon=True)
-    thread.start()
+    # Run synchronously so errors are visible instead of lost in a thread
+    try:
+        run_pipeline_for_user(user.id)
+        flash_message = "Pipeline run complete. Check the Dashboard for results."
+        flash_type = "success"
+    except Exception as e:
+        flash_message = f"Pipeline error: {e}"
+        flash_type = "error"
 
     settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
     return request.app.state.templates.TemplateResponse("settings/index.html", {
         "request": request,
         "user": user,
         "settings": settings,
-        "flash_message": "Pipeline run started in the background. Check the Dashboard for results.",
-        "flash_type": "success",
+        "flash_message": flash_message,
+        "flash_type": flash_type,
     })
