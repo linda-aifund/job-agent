@@ -1,18 +1,39 @@
 """Pipeline adapter — converts DB config into AppConfig and runs the existing pipeline."""
 
 import logging
+import smtplib
 import time
 from datetime import datetime, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from job_agent.config import AppConfig, EmailConfig, SearchConfig, MatchingConfig, ApiKeys, ProfileConfig
 from job_agent.jobs.models import JobListing
 from job_agent.main import fetch_all_jobs
 from job_agent.matching.matcher import score_and_filter_jobs
 from job_agent.models import SessionLocal, SeenJob, RunHistory, UserProfile, UserSettings
-from job_agent.notifications.email_sender import send_email
 from job_agent.notifications.templates import render_job_email
 
 logger = logging.getLogger("job_agent.pipeline")
+
+
+def _send_email_with_detail(config: EmailConfig, subject: str, html_body: str) -> bool:
+    """Send email and raise on failure so the caller gets the exact error."""
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = config.sender_email
+    msg["To"] = config.recipient_email
+    msg.attach(MIMEText(f"View this email in an HTML-capable client.\n\nSubject: {subject}", "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+
+    with smtplib.SMTP(config.smtp_server, config.smtp_port, timeout=30) as server:
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(config.sender_email, config.sender_password)
+        server.sendmail(config.sender_email, config.recipient_email, msg.as_string())
+
+    return True
 
 
 def build_app_config_for_user(settings: UserSettings, profile: UserProfile) -> AppConfig:
@@ -140,10 +161,10 @@ def run_pipeline_for_user(user_id: int) -> None:
         else:
             subject, html = render_job_email(matched_jobs)
             try:
-                email_sent = send_email(config.email, subject, html)
+                email_sent = _send_email_with_detail(config.email, subject, html)
             except Exception as smtp_exc:
                 email_sent = False
-                email_error = f"SMTP exception: {smtp_exc}"
+                email_error = f"Email error: {type(smtp_exc).__name__}: {smtp_exc}"
                 logger.error("[user:%d] %s", user_id, email_error)
             if email_sent:
                 matched_ids = {j.job_id for j in matched_jobs}
@@ -151,13 +172,6 @@ def run_pipeline_for_user(user_id: int) -> None:
                     SeenJob.user_id == user_id,
                     SeenJob.job_id.in_(matched_ids),
                 ).update({SeenJob.sent_at: now}, synchronize_session=False)
-            elif not email_error:
-                # send_email returned False — check its internal logging
-                email_error = (
-                    f"SMTP send failed — server={config.email.smtp_server}:{config.email.smtp_port}, "
-                    f"sender={config.email.sender_email}, recipient={config.email.recipient_email}"
-                )
-                logger.error("[user:%d] %s", user_id, email_error)
 
         _record_run(
             db, user_id, start,
