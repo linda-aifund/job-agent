@@ -1,11 +1,11 @@
 """Schedule routes — configure pipeline schedule."""
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from job_agent.models import UserSettings
-from job_agent.scheduler import schedule_user_pipeline, get_next_run_time
+from job_agent.scheduler import schedule_user_pipeline, get_next_run_time, get_scheduler_info
 
 from .dependencies import get_db, get_current_user
 
@@ -59,3 +59,13 @@ async def update_schedule(request: Request, db: Session = Depends(get_db)):
         "flash_message": "Schedule updated." + (f" Next run: {next_run.strftime('%Y-%m-%d %H:%M %Z')}" if next_run else ""),
         "flash_type": "success",
     })
+
+
+@router.get("/debug")
+def schedule_debug(request: Request, db: Session = Depends(get_db)):
+    """Diagnostic endpoint — shows scheduler state."""
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"error": "not logged in"}, status_code=401)
+    info = get_scheduler_info()
+    return JSONResponse(info)

@@ -52,24 +52,37 @@ class _Templates:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: initialize scheduler and register active schedules
+    # Startup: configure logging early so scheduler messages are visible
+    import logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
+    _log = logging.getLogger("job_agent.web.app")
+    _log.info("=== App startup begin ===")
+
+    # Initialize scheduler and register active schedules
     try:
-        from job_agent.scheduler import init_scheduler, schedule_user_pipeline, shutdown_scheduler
+        from job_agent.scheduler import init_scheduler, schedule_user_pipeline
         from job_agent.models import UserSettings
         init_scheduler()
         db = SessionLocal()
         try:
             active = db.query(UserSettings).filter(UserSettings.schedule_enabled.is_(True)).all()
+            _log.info("Registering schedules for %d active users", len(active))
             for settings in active:
                 schedule_user_pipeline(settings.user_id, settings)
+                _log.info("Registered schedule for user %d", settings.user_id)
         finally:
             db.close()
-    except Exception:
-        pass  # Scheduler not yet implemented in early phases
+        _log.info("=== Scheduler startup complete ===")
+    except Exception as e:
+        _log.error("Scheduler startup FAILED: %s", e, exc_info=True)
 
     yield
 
     # Shutdown
+    _log.info("=== App shutdown begin ===")
     try:
         from job_agent.scheduler import shutdown_scheduler
         shutdown_scheduler()
