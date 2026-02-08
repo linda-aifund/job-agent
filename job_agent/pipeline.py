@@ -139,15 +139,24 @@ def run_pipeline_for_user(user_id: int) -> None:
             logger.warning("[user:%d] %s", user_id, email_error)
         else:
             subject, html = render_job_email(matched_jobs)
-            email_sent = send_email(config.email, subject, html)
+            try:
+                email_sent = send_email(config.email, subject, html)
+            except Exception as smtp_exc:
+                email_sent = False
+                email_error = f"SMTP exception: {smtp_exc}"
+                logger.error("[user:%d] %s", user_id, email_error)
             if email_sent:
                 matched_ids = {j.job_id for j in matched_jobs}
                 db.query(SeenJob).filter(
                     SeenJob.user_id == user_id,
                     SeenJob.job_id.in_(matched_ids),
                 ).update({SeenJob.sent_at: now}, synchronize_session=False)
-            else:
-                email_error = "SMTP send failed — check email credentials"
+            elif not email_error:
+                # send_email returned False — check its internal logging
+                email_error = (
+                    f"SMTP send failed — server={config.email.smtp_server}:{config.email.smtp_port}, "
+                    f"sender={config.email.sender_email}, recipient={config.email.recipient_email}"
+                )
                 logger.error("[user:%d] %s", user_id, email_error)
 
         _record_run(
