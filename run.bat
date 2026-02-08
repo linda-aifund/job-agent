@@ -12,4 +12,4 @@ if exist "venv\Scripts\activate.bat" (
     exit /b 1
 )
 
-python -m job_agent.main %*
+python -m job_agent.main %* >> "%~dp0logs\run.log" 2>&1
