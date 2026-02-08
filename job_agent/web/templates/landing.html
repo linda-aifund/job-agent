@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Job Agent — Automated Job Matching{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>Find Your Next Job, Automatically</h1>
+    <p>Upload your resume, set your preferences, and let Job Agent scan hundreds of listings to find the best matches — delivered straight to your inbox.</p>
+    <div class="cta-buttons">
+        <a href="/signup" class="btn btn-primary" style="padding: 12px 32px; font-size: 16px;">Get Started</a>
+        <a href="/login" class="btn btn-secondary" style="padding: 12px 32px; font-size: 16px;">Log In</a>
+    </div>
+</div>
+
+<div class="features">
+    <div class="feature-card">
+        <h3>Smart Matching</h3>
+        <p>Keyword and AI-powered scoring ranks jobs by how well they fit your skills and experience.</p>
+    </div>
+    <div class="feature-card">
+        <h3>Multiple Sources</h3>
+        <p>Aggregates listings from SerpAPI, Indeed, and LinkedIn in a single search.</p>
+    </div>
+    <div class="feature-card">
+        <h3>Scheduled Alerts</h3>
+        <p>Set a daily or weekly schedule and get email notifications when new matches appear.</p>
+    </div>
+</div>
+{% endblock %}

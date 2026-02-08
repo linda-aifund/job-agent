@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Schedule — Job Agent{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 24px;">Pipeline Schedule</h1>
+
+{% if flash_message %}
+<div class="flash flash-{{ flash_type | default('success') }}">{{ flash_message }}</div>
+{% endif %}
+
+<div class="card">
+    <h2>Configure Schedule</h2>
+
+    {% if next_run %}
+    <p style="margin-bottom: 16px; font-size: 14px;">
+        Next scheduled run: <strong>{{ next_run.strftime('%Y-%m-%d %H:%M %Z') }}</strong>
+    </p>
+    {% elif settings.schedule_enabled %}
+    <p style="margin-bottom: 16px; font-size: 14px; color: var(--warning);">
+        Schedule is enabled but no next run is scheduled. Save to sync.
+    </p>
+    {% endif %}
+
+    <form method="post" action="/schedule">
+        <div class="form-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="schedule_enabled" name="schedule_enabled"
+                       {{ 'checked' if settings.schedule_enabled else '' }}>
+                <label for="schedule_enabled" style="margin-bottom:0;">Enable scheduled pipeline runs</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="schedule_frequency">Frequency</label>
+            <select id="schedule_frequency" name="schedule_frequency">
+                <option value="daily" {{ 'selected' if settings.schedule_frequency == 'daily' else '' }}>Daily</option>
+                <option value="weekly" {{ 'selected' if settings.schedule_frequency == 'weekly' else '' }}>Weekly</option>
+                <option value="monthly" {{ 'selected' if settings.schedule_frequency == 'monthly' else '' }}>Monthly</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="day-of-week-group">
+            <label for="schedule_day_of_week">Day of Week</label>
+            <select id="schedule_day_of_week" name="schedule_day_of_week">
+                {% for val, label in [('mon','Monday'),('tue','Tuesday'),('wed','Wednesday'),('thu','Thursday'),('fri','Friday'),('sat','Saturday'),('sun','Sunday')] %}
+                <option value="{{ val }}" {{ 'selected' if settings.schedule_day_of_week == val else '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group" id="day-of-month-group" style="display:none;">
+            <label for="schedule_day_of_month">Day of Month</label>
+            <input type="number" id="schedule_day_of_month" name="schedule_day_of_month"
+                   value="{{ settings.schedule_day_of_month or 1 }}" min="1" max="28">
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+            <div class="form-group" style="flex:1;">
+                <label for="schedule_hour">Hour (0–23)</label>
+                <input type="number" id="schedule_hour" name="schedule_hour"
+                       value="{{ settings.schedule_hour or 9 }}" min="0" max="23">
+            </div>
+            <div class="form-group" style="flex:1;">
+                <label for="schedule_minute">Minute (0–59)</label>
+                <input type="number" id="schedule_minute" name="schedule_minute"
+                       value="{{ settings.schedule_minute or 0 }}" min="0" max="59">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="schedule_timezone">Timezone</label>
+            <input type="text" id="schedule_timezone" name="schedule_timezone"
+                   value="{{ settings.schedule_timezone or 'America/New_York' }}">
+            <div class="help-text">e.g. America/New_York, America/Los_Angeles, Europe/London, UTC</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Schedule</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleFrequencyFields() {
+    var freq = document.getElementById('schedule_frequency').value;
+    document.getElementById('day-of-week-group').style.display = freq === 'weekly' ? '' : 'none';
+    document.getElementById('day-of-month-group').style.display = freq === 'monthly' ? '' : 'none';
+}
+document.getElementById('schedule_frequency').addEventListener('change', toggleFrequencyFields);
+toggleFrequencyFields();
+</script>
+{% endblock %}

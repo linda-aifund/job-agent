@@ -6,3 +6,6 @@ data/
 logs/
 config.yaml
 *.egg-info/
+uploads/
+*.db
+.env

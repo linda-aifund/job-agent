@@ -29,7 +29,7 @@ def score_job(profile: ProfileData, job: JobListing) -> tuple[float, str]:
 
     # 1. Skills overlap (40%)
     job_text = f"{job.title} {job.description}".lower()
-    job_skills = extract_skills(job_text)
+    job_skills = extract_skills(job_text) | {s for s in profile.skills if s in job_text}
 
     if profile.skills and job_skills:
         overlap = profile.skills & job_skills

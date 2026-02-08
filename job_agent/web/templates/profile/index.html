@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Profile — Job Agent{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 24px;">Your Profile</h1>
+
+{% if flash_message %}
+<div class="flash flash-{{ flash_type | default('success') }}">{{ flash_message }}</div>
+{% endif %}
+
+{# Upload Resume #}
+<div class="card">
+    <h2>Upload Resume</h2>
+    <form method="post" action="/profile/upload-resume" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="file">Resume file (PDF, TXT, or MD)</label>
+            <input type="file" id="file" name="file" accept=".pdf,.txt,.md" required>
+        </div>
+        {% if profile and profile.resume_filename %}
+        <p style="font-size:13px; color: var(--text-muted); margin-bottom: 12px;">
+            Current file: <strong>{{ profile.resume_filename }}</strong>
+        </p>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">Upload &amp; Parse</button>
+    </form>
+</div>
+
+{# Import from LinkedIn #}
+<div class="card">
+    <h2>Import from LinkedIn</h2>
+    <form method="post" action="/profile/linkedin">
+        <div class="form-group">
+            <label for="linkedin_url">LinkedIn Profile URL</label>
+            <input type="url" id="linkedin_url" name="linkedin_url"
+                   placeholder="https://www.linkedin.com/in/yourname"
+                   value="{{ profile.linkedin_url if profile else '' }}">
+            <div class="help-text">Public profiles only. LinkedIn may block scraping.</div>
+        </div>
+        <button type="submit" class="btn btn-primary">Import</button>
+    </form>
+</div>
+
+{# Parsed Profile Data #}
+{% if profile and profile.parsed_at %}
+<div class="card">
+    <h2>Parsed Profile</h2>
+
+    {% if profile.name %}
+    <p><strong>Name:</strong> {{ profile.name }}</p>
+    {% endif %}
+    {% if profile.location %}
+    <p><strong>Location:</strong> {{ profile.location }}</p>
+    {% endif %}
+    {% if profile.experience_years %}
+    <p><strong>Experience:</strong> {{ profile.experience_years }} years</p>
+    {% endif %}
+    {% if profile.summary %}
+    <p style="margin-top:12px;"><strong>Summary:</strong></p>
+    <p style="color: var(--text-muted); font-size: 14px;">{{ profile.summary[:500] }}</p>
+    {% endif %}
+
+    {# Job Titles #}
+    {% if profile.job_titles %}
+    <div style="margin-top: 16px;">
+        <strong>Job Titles:</strong>
+        <div style="margin-top: 4px;">
+            {% for title in profile.job_titles %}
+            <span class="tag">{{ title }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# Skills #}
+    <div style="margin-top: 16px;">
+        <strong>Skills:</strong>
+        <div style="margin-top: 4px;">
+            {% for skill in (profile.skills or []) %}
+            <span class="tag">
+                {{ skill }}
+                <form method="post" action="/profile/skills" style="display:inline;">
+                    <input type="hidden" name="action" value="remove">
+                    <input type="hidden" name="skill" value="{{ skill }}">
+                    <button type="submit" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;padding:0 2px;">&times;</button>
+                </form>
+            </span>
+            {% endfor %}
+        </div>
+        <form method="post" action="/profile/skills" style="display:flex; gap:8px; margin-top:8px; max-width:400px;">
+            <input type="hidden" name="action" value="add">
+            <input type="text" name="skill" placeholder="Add a skill..." style="flex:1;">
+            <button type="submit" class="btn btn-sm btn-primary">Add</button>
+        </form>
+    </div>
+
+    {# Keywords #}
+    {% if profile.keywords %}
+    <div style="margin-top: 16px;">
+        <strong>Keywords:</strong>
+        <div style="margin-top: 4px;">
+            {% for kw in profile.keywords[:20] %}
+            <span class="tag">{{ kw }}</span>
+            {% endfor %}
+            {% if profile.keywords | length > 20 %}
+            <span style="font-size:12px;color:var(--text-muted);">+{{ profile.keywords | length - 20 }} more</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# Education #}
+    {% if profile.education %}
+    <div style="margin-top: 16px;">
+        <strong>Education:</strong>
+        <ul style="margin-top:4px; padding-left:20px; font-size:14px; color:var(--text-muted);">
+            {% for edu in profile.education %}
+            <li>{{ edu }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <p style="margin-top:16px; font-size:12px; color:#999;">
+        Last parsed: {{ profile.parsed_at.strftime('%Y-%m-%d %H:%M UTC') if profile.parsed_at else 'Never' }}
+    </p>
+</div>
+{% endif %}
+{% endblock %}

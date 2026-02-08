@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Job Agent{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <a class="navbar-brand" href="/">Job Agent</a>
+        <div class="navbar-links">
+            {% if user %}
+                <a href="/dashboard">Dashboard</a>
+                <a href="/profile">Profile</a>
+                <a href="/settings">Settings</a>
+                <a href="/schedule">Schedule</a>
+                <a href="/logout">Logout</a>
+            {% else %}
+                <a href="/login">Login</a>
+                <a href="/signup">Sign Up</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container">
+        {% if flash_message %}
+        <div class="flash flash-{{ flash_type | default('success') }}">
+            {{ flash_message }}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <div class="footer">
+        Job Agent &mdash; Automated job matching
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

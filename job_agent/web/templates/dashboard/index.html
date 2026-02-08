@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Job Agent{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 24px;">Dashboard</h1>
+
+{# Stats #}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_jobs }}</div>
+        <div class="stat-label">Total Jobs Tracked</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ jobs_emailed }}</div>
+        <div class="stat-label">Jobs Emailed</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_runs }}</div>
+        <div class="stat-label">Pipeline Runs</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="font-size:16px;">
+            {% if last_run %}
+                {{ last_run.run_at.strftime('%b %d, %H:%M') }}
+            {% else %}
+                Never
+            {% endif %}
+        </div>
+        <div class="stat-label">Last Run</div>
+    </div>
+</div>
+
+<div style="display:flex; gap:12px; margin-bottom: 24px;">
+    <a href="/dashboard/jobs" class="btn btn-secondary">View All Jobs</a>
+    <a href="/dashboard/history" class="btn btn-secondary">Run History</a>
+    <form method="post" action="/settings/run-now" style="display:inline;">
+        <button type="submit" class="btn btn-success">Run Now</button>
+    </form>
+</div>
+
+{# Recent Matched Jobs #}
+<div class="card">
+    <h2>Recent Top Matches</h2>
+    {% if recent_jobs %}
+        {% for job in recent_jobs %}
+        <div class="job-card">
+            <div class="job-header">
+                <div class="job-title">
+                    {% if job.url %}
+                    <a href="{{ job.url }}" target="_blank">{{ job.title }}</a>
+                    {% else %}
+                    {{ job.title }}
+                    {% endif %}
+                </div>
+                {% set score_pct = (job.match_score * 100) | int %}
+                <span class="score-badge {% if score_pct >= 70 %}score-high{% elif score_pct >= 40 %}score-medium{% else %}score-low{% endif %}">
+                    {{ score_pct }}% match
+                </span>
+            </div>
+            <div class="job-company">{{ job.company }}</div>
+            <div class="job-meta">
+                {% if job.location %}{{ job.location }}{% endif %}
+                {% if job.source %} &middot; {{ job.source }}{% endif %}
+                {% if job.posted_date %} &middot; {{ job.posted_date }}{% endif %}
+                {% if job.sent_at %} &middot; Emailed{% endif %}
+            </div>
+            {% if job.match_reason %}
+            <div class="job-reason">{{ job.match_reason }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p style="color: var(--text-muted); font-size: 14px;">
+            No matched jobs yet. Upload your resume, configure settings, and run the pipeline.
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

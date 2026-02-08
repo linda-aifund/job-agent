@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Settings — Job Agent{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 24px;">Settings</h1>
+
+{% if flash_message %}
+<div class="flash flash-{{ flash_type | default('success') }}">{{ flash_message }}</div>
+{% endif %}
+
+{# Tab navigation #}
+<div class="tabs">
+    <button class="tab active" onclick="showTab('search')">Search &amp; Matching</button>
+    <button class="tab" onclick="showTab('email')">Email</button>
+    <button class="tab" onclick="showTab('apikeys')">API Keys</button>
+    <button class="tab" onclick="showTab('actions')">Actions</button>
+</div>
+
+{# Search & Matching Tab #}
+<div id="tab-search" class="tab-content active">
+<div class="card">
+    <h2>Search &amp; Matching</h2>
+    <form method="post" action="/settings/search">
+        <div class="form-group">
+            <label for="job_titles">Job Titles (comma-separated)</label>
+            <input type="text" id="job_titles" name="job_titles"
+                   value="{{ (settings.job_titles or []) | join(', ') }}">
+            <div class="help-text">e.g. Software Engineer, Data Scientist, Product Manager</div>
+        </div>
+        <div class="form-group">
+            <label for="location">Location</label>
+            <input type="text" id="location" name="location"
+                   value="{{ settings.location or '' }}" placeholder="e.g. San Francisco, CA">
+        </div>
+        <div class="form-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="remote_ok" name="remote_ok" {{ 'checked' if settings.remote_ok else '' }}>
+                <label for="remote_ok" style="margin-bottom:0;">Include remote jobs</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="experience_years">Years of Experience</label>
+            <input type="number" id="experience_years" name="experience_years"
+                   value="{{ settings.experience_years or 0 }}" min="0" max="50">
+        </div>
+        <div class="form-group">
+            <label for="max_results_per_source">Max Results per Source</label>
+            <input type="number" id="max_results_per_source" name="max_results_per_source"
+                   value="{{ settings.max_results_per_source or 50 }}" min="10" max="200">
+        </div>
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border);">
+        <div class="form-group">
+            <label for="score_threshold">Match Score Threshold (0.0–1.0)</label>
+            <input type="number" id="score_threshold" name="score_threshold"
+                   value="{{ settings.score_threshold or 0.3 }}" min="0" max="1" step="0.05">
+            <div class="help-text">Jobs below this score will not appear in emails.</div>
+        </div>
+        <div class="form-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="use_ai_matching" name="use_ai_matching"
+                       {{ 'checked' if settings.use_ai_matching else '' }}>
+                <label for="use_ai_matching" style="margin-bottom:0;">Enable AI matching (requires OpenAI key)</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="ai_pre_filter_threshold">AI Pre-filter Threshold</label>
+            <input type="number" id="ai_pre_filter_threshold" name="ai_pre_filter_threshold"
+                   value="{{ settings.ai_pre_filter_threshold or 0.2 }}" min="0" max="1" step="0.05">
+        </div>
+        <button type="submit" class="btn btn-primary">Save Search Settings</button>
+    </form>
+</div>
+</div>
+
+{# Email Tab #}
+<div id="tab-email" class="tab-content">
+<div class="card">
+    <h2>Email Configuration</h2>
+    <form method="post" action="/settings/email">
+        <div class="form-group">
+            <label for="smtp_server">SMTP Server</label>
+            <input type="text" id="smtp_server" name="smtp_server"
+                   value="{{ settings.smtp_server or 'smtp.gmail.com' }}">
+        </div>
+        <div class="form-group">
+            <label for="smtp_port">SMTP Port</label>
+            <input type="number" id="smtp_port" name="smtp_port"
+                   value="{{ settings.smtp_port or 587 }}">
+        </div>
+        <div class="form-group">
+            <label for="sender_email">Sender Email</label>
+            <input type="email" id="sender_email" name="sender_email"
+                   value="{{ settings.sender_email or '' }}">
+        </div>
+        <div class="form-group">
+            <label for="sender_password">Sender Password (App Password)</label>
+            <input type="password" id="sender_password" name="sender_password"
+                   placeholder="{{ '••••••••' if settings.sender_password else 'Enter password' }}">
+            <div class="help-text">Leave blank to keep existing password. For Gmail, use an App Password.</div>
+        </div>
+        <div class="form-group">
+            <label for="recipient_email">Recipient Email</label>
+            <input type="email" id="recipient_email" name="recipient_email"
+                   value="{{ settings.recipient_email or '' }}">
+        </div>
+        <button type="submit" class="btn btn-primary">Save Email Settings</button>
+    </form>
+</div>
+</div>
+
+{# API Keys Tab #}
+<div id="tab-apikeys" class="tab-content">
+<div class="card">
+    <h2>API Keys</h2>
+    <form method="post" action="/settings/api-keys">
+        <div class="form-group">
+            <label for="serpapi_key">SerpAPI Key</label>
+            <input type="password" id="serpapi_key" name="serpapi_key"
+                   placeholder="{{ '••••••••' if settings.serpapi_key else 'Enter key' }}">
+            <div class="help-text">Required for fetching jobs. Get one at serpapi.com</div>
+        </div>
+        <div class="form-group">
+            <label for="openai_api_key">OpenAI API Key</label>
+            <input type="password" id="openai_api_key" name="openai_api_key"
+                   placeholder="{{ '••••••••' if settings.openai_api_key else 'Enter key' }}">
+            <div class="help-text">Optional — only needed for AI matching.</div>
+        </div>
+        <button type="submit" class="btn btn-primary">Save API Keys</button>
+    </form>
+</div>
+</div>
+
+{# Actions Tab #}
+<div id="tab-actions" class="tab-content">
+<div class="card">
+    <h2>Run Pipeline Now</h2>
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 16px;">
+        Trigger an immediate pipeline run. This will fetch jobs, score them, and send an email with matches.
+    </p>
+    <form method="post" action="/settings/run-now">
+        <button type="submit" class="btn btn-success">Run Now</button>
+    </form>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+}
+</script>
+{% endblock %}
