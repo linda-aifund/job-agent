@@ -125,7 +125,19 @@ def run_pipeline_for_user(user_id: int) -> None:
 
         # Step 4: Send email
         email_sent = False
-        if matched_jobs and config.email.sender_email:
+        email_error = None
+        if not matched_jobs:
+            pass
+        elif not config.email.sender_email:
+            email_error = "Sender email not configured"
+            logger.warning("[user:%d] %s", user_id, email_error)
+        elif not config.email.sender_password:
+            email_error = "Sender password not configured"
+            logger.warning("[user:%d] %s", user_id, email_error)
+        elif not config.email.recipient_email:
+            email_error = "Recipient email not configured"
+            logger.warning("[user:%d] %s", user_id, email_error)
+        else:
             subject, html = render_job_email(matched_jobs)
             email_sent = send_email(config.email, subject, html)
             if email_sent:
@@ -134,6 +146,9 @@ def run_pipeline_for_user(user_id: int) -> None:
                     SeenJob.user_id == user_id,
                     SeenJob.job_id.in_(matched_ids),
                 ).update({SeenJob.sent_at: now}, synchronize_session=False)
+            else:
+                email_error = "SMTP send failed — check email credentials"
+                logger.error("[user:%d] %s", user_id, email_error)
 
         _record_run(
             db, user_id, start,
@@ -141,6 +156,7 @@ def run_pipeline_for_user(user_id: int) -> None:
             new_jobs_found=len(new_jobs),
             jobs_matched=len(matched_jobs),
             email_sent=email_sent,
+            error_message=email_error,
         )
         db.commit()
         logger.info(
