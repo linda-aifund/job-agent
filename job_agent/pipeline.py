@@ -17,8 +17,22 @@ from job_agent.notifications.templates import render_job_email
 logger = logging.getLogger("job_agent.pipeline")
 
 
-def _send_email_with_detail(config: EmailConfig, subject: str, html_body: str) -> bool:
-    """Send email and raise on failure so the caller gets the exact error."""
+def _send_email_with_detail(
+    config: EmailConfig, subject: str, html_body: str, resend_api_key: str = ""
+) -> bool:
+    """Send email via Resend (HTTP) if key provided, otherwise SMTP. Raises on failure."""
+    if resend_api_key:
+        import resend
+        resend.api_key = resend_api_key
+        resend.Emails.send({
+            "from": f"Job Agent <{config.sender_email}>",
+            "to": [config.recipient_email],
+            "subject": subject,
+            "html": html_body,
+        })
+        return True
+
+    # Fallback to SMTP (won't work on Railway / most cloud hosts)
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = config.sender_email
@@ -147,13 +161,14 @@ def run_pipeline_for_user(user_id: int) -> None:
         # Step 4: Send email
         email_sent = False
         email_error = None
+        resend_key = settings.resend_api_key if hasattr(settings, "resend_api_key") else ""
         if not matched_jobs:
             pass
         elif not config.email.sender_email:
             email_error = "Sender email not configured"
             logger.warning("[user:%d] %s", user_id, email_error)
-        elif not config.email.sender_password:
-            email_error = "Sender password not configured"
+        elif not resend_key and not config.email.sender_password:
+            email_error = "Sender password not configured (or add a Resend API key)"
             logger.warning("[user:%d] %s", user_id, email_error)
         elif not config.email.recipient_email:
             email_error = "Recipient email not configured"
@@ -161,7 +176,7 @@ def run_pipeline_for_user(user_id: int) -> None:
         else:
             subject, html = render_job_email(matched_jobs)
             try:
-                email_sent = _send_email_with_detail(config.email, subject, html)
+                email_sent = _send_email_with_detail(config.email, subject, html, resend_key)
             except Exception as smtp_exc:
                 email_sent = False
                 email_error = f"Email error: {type(smtp_exc).__name__}: {smtp_exc}"

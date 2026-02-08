@@ -36,6 +36,7 @@ class UserSettings(Base):
     sender_email: Mapped[str] = mapped_column(String(255), default="")
     sender_password: Mapped[str] = mapped_column(String(255), default="")
     recipient_email: Mapped[str] = mapped_column(String(255), default="")
+    resend_api_key: Mapped[str] = mapped_column(String(255), default="")
 
     # Schedule config
     schedule_enabled: Mapped[bool] = mapped_column(Boolean, default=False)

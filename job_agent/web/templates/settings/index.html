@@ -103,6 +103,13 @@
             <input type="email" id="recipient_email" name="recipient_email"
                    value="{{ settings.recipient_email or '' }}">
         </div>
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border);">
+        <div class="form-group">
+            <label for="resend_api_key">Resend API Key (recommended for cloud hosting)</label>
+            <input type="password" id="resend_api_key" name="resend_api_key"
+                   placeholder="{{ '••••••••' if settings.resend_api_key else 'Enter key' }}">
+            <div class="help-text">If set, emails are sent via Resend (HTTP) instead of SMTP. Get a free key at <a href="https://resend.com" target="_blank">resend.com</a>. SMTP is blocked on most cloud hosts.</div>
+        </div>
         <button type="submit" class="btn btn-primary">Save Email Settings</button>
     </form>
 </div>

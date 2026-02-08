@@ -77,6 +77,9 @@ async def update_email(request: Request, db: Session = Depends(get_db)):
     if new_password:
         settings.sender_password = new_password
     settings.recipient_email = form.get("recipient_email", "").strip()
+    new_resend = form.get("resend_api_key", "").strip()
+    if new_resend:
+        settings.resend_api_key = new_resend
     db.commit()
 
     return request.app.state.templates.TemplateResponse("settings/index.html", {
