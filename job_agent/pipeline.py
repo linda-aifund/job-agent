@@ -50,6 +50,21 @@ def _send_email_with_detail(
     return True
 
 
+def _no_matches_email(jobs_fetched: int, new_jobs: int) -> str:
+    """Render a simple HTML email for runs with no new matches."""
+    return f"""\
+<html><body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+<h2 style="color: #333;">Job Agent — No New Matches</h2>
+<p>Your scheduled pipeline ran successfully but found no new matches this time.</p>
+<table style="border-collapse: collapse; margin: 16px 0;">
+<tr><td style="padding: 4px 12px; color: #666;">Jobs scanned</td><td style="padding: 4px 12px;"><strong>{jobs_fetched}</strong></td></tr>
+<tr><td style="padding: 4px 12px; color: #666;">New (unseen) jobs</td><td style="padding: 4px 12px;"><strong>{new_jobs}</strong></td></tr>
+<tr><td style="padding: 4px 12px; color: #666;">Matches above threshold</td><td style="padding: 4px 12px;"><strong>0</strong></td></tr>
+</table>
+<p style="color: #888; font-size: 13px;">This email confirms the scheduler is working. You'll receive matches when new relevant jobs appear.</p>
+</body></html>"""
+
+
 def build_app_config_for_user(settings: UserSettings, profile: UserProfile) -> AppConfig:
     """Construct an AppConfig dataclass from database rows."""
     return AppConfig(
@@ -104,67 +119,63 @@ def run_pipeline_for_user(user_id: int) -> None:
         all_jobs = fetch_all_jobs(config)
         jobs_fetched = len(all_jobs)
 
+        new_jobs = []
+        matched_jobs = []
+        now = datetime.now(timezone.utc)
+
         if not all_jobs:
             logger.info("[user:%d] No jobs fetched", user_id)
-            _record_run(db, user_id, start, jobs_fetched=0)
-            return
+        else:
+            # Step 2: Deduplicate against user's seen_jobs_v2
+            seen_ids = {
+                row.job_id
+                for row in db.query(SeenJob.job_id).filter(SeenJob.user_id == user_id).all()
+            }
+            new_jobs = [j for j in all_jobs if j.job_id not in seen_ids]
+            logger.info("[user:%d] New jobs after dedup: %d/%d", user_id, len(new_jobs), jobs_fetched)
 
-        # Step 2: Deduplicate against user's seen_jobs_v2
-        seen_ids = {
-            row.job_id
-            for row in db.query(SeenJob.job_id).filter(SeenJob.user_id == user_id).all()
-        }
-        new_jobs = [j for j in all_jobs if j.job_id not in seen_ids]
-        logger.info("[user:%d] New jobs after dedup: %d/%d", user_id, len(new_jobs), jobs_fetched)
+            if new_jobs:
+                # Step 3: Score and filter
+                matched_jobs = score_and_filter_jobs(profile_data, new_jobs, config)
+                logger.info("[user:%d] Jobs above threshold: %d", user_id, len(matched_jobs))
 
-        if not new_jobs:
-            _record_run(db, user_id, start, jobs_fetched=jobs_fetched, new_jobs_found=0)
-            return
+                # Persist all new jobs (even unmatched, for dedup)
+                for job in new_jobs:
+                    db.add(SeenJob(
+                        user_id=user_id,
+                        job_id=job.job_id,
+                        title=job.title,
+                        company=job.company,
+                        url=job.url,
+                        location=job.location,
+                        description=job.description[:2000] if job.description else "",
+                        salary=job.salary,
+                        source=job.source,
+                        posted_date=job.posted_date,
+                        job_type=job.job_type,
+                        remote=job.remote,
+                        match_score=job.match_score,
+                        match_reason=job.match_reason,
+                        first_seen_at=now,
+                        last_seen_at=now,
+                    ))
+                db.flush()
 
-        # Step 3: Score and filter
-        matched_jobs = score_and_filter_jobs(profile_data, new_jobs, config)
-        logger.info("[user:%d] Jobs above threshold: %d", user_id, len(matched_jobs))
+                # Deduplicate by (title, company)
+                seen_pairs: set[tuple[str, str]] = set()
+                unique_matched: list[JobListing] = []
+                for job in matched_jobs:
+                    key = (job.title.strip().lower(), job.company.strip().lower())
+                    if key not in seen_pairs:
+                        seen_pairs.add(key)
+                        unique_matched.append(job)
+                matched_jobs = unique_matched
 
-        # Persist all new jobs (even unmatched, for dedup)
-        now = datetime.now(timezone.utc)
-        for job in new_jobs:
-            db.add(SeenJob(
-                user_id=user_id,
-                job_id=job.job_id,
-                title=job.title,
-                company=job.company,
-                url=job.url,
-                location=job.location,
-                description=job.description[:2000] if job.description else "",
-                salary=job.salary,
-                source=job.source,
-                posted_date=job.posted_date,
-                job_type=job.job_type,
-                remote=job.remote,
-                match_score=job.match_score,
-                match_reason=job.match_reason,
-                first_seen_at=now,
-                last_seen_at=now,
-            ))
-        db.flush()
-
-        # Deduplicate by (title, company)
-        seen_pairs: set[tuple[str, str]] = set()
-        unique_matched: list[JobListing] = []
-        for job in matched_jobs:
-            key = (job.title.strip().lower(), job.company.strip().lower())
-            if key not in seen_pairs:
-                seen_pairs.add(key)
-                unique_matched.append(job)
-        matched_jobs = unique_matched
-
-        # Step 4: Send email
+        # Step 4: Send email (always — with matches or a summary)
         email_sent = False
         email_error = None
         resend_key = settings.resend_api_key if hasattr(settings, "resend_api_key") else ""
-        if not matched_jobs:
-            pass
-        elif not config.email.sender_email:
+        if not config.email.sender_email:
             email_error = "Sender email not configured"
             logger.warning("[user:%d] %s", user_id, email_error)
         elif not resend_key and not config.email.sender_password:
@@ -174,7 +185,11 @@ def run_pipeline_for_user(user_id: int) -> None:
             email_error = "Recipient email not configured"
             logger.warning("[user:%d] %s", user_id, email_error)
         else:
-            subject, html = render_job_email(matched_jobs)
+            if matched_jobs:
+                subject, html = render_job_email(matched_jobs)
+            else:
+                subject = "Job Agent — No New Matches"
+                html = _no_matches_email(jobs_fetched, len(new_jobs))
             try:
                 email_sent = _send_email_with_detail(config.email, subject, html, resend_key)
             except Exception as smtp_exc:
